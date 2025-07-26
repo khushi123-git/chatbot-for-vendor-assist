@@ -9,7 +9,7 @@ const Index = () => {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "1",
-      text: "नमस्ते! मैं आपका supplier assistant हूँ। आपको कौन सी सब्जी या सामान चाहिए?\n\nHello! I'm your supplier assistant. What vegetables or items do you need?\n\nनमस्कार! मी तुमचा supplier assistant आहे. तुम्हाला कोणती भाजी किंवा सामान हवी?",
+      text: "नमस्ते! मैं Vendor Assist Bot हूँ - आपका दोस्त जो street food business में मदद करता है! 🍛\n\nमैं आपको बेस्ट suppliers ढूंढने में, pricing के बारे में जानने में, और अपना business smooth चलाने में मदद करूंगा।\n\nबताइए आज क्या चाहिए?",
       isUser: false,
       timestamp: new Date(),
     },
@@ -71,8 +71,8 @@ const Index = () => {
             <MessageCircle className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="text-lg font-semibold">Supplier Assistant</h1>
-            <p className="text-sm opacity-90">Find trusted suppliers for your street food business</p>
+            <h1 className="text-lg font-semibold">Vendor Assist Bot</h1>
+            <p className="text-sm opacity-90">Your friendly assistant for street food business success</p>
           </div>
         </div>
       </div>
