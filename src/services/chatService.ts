@@ -127,11 +127,16 @@ const convertToSupplier = (vendor: VendorData): Supplier => {
 
 // Find vendors based on location and item
 const findVendorsByLocationAndItem = (location: string, item: string): VendorData[] => {
+  console.log(`Searching for: ${item} in ${location}`);
+  console.log(`Available vendors:`, vendorDatabase.filter(v => v.category.toLowerCase() === item.toLowerCase()));
+  
   // First try exact location match
   let vendors = vendorDatabase.filter(vendor => 
-    vendor.location.toLowerCase() === location.toLowerCase() && 
-    vendor.category.toLowerCase() === item.toLowerCase()
+    vendor.location.toLowerCase().trim() === location.toLowerCase().trim() && 
+    vendor.category.toLowerCase().trim() === item.toLowerCase().trim()
   );
+  
+  console.log(`Exact match found: ${vendors.length} vendors`);
   
   // If no exact match, try nearby areas
   if (vendors.length === 0) {
@@ -151,8 +156,10 @@ const findVendorsByLocationAndItem = (location: string, item: string): VendorDat
     const nearby = nearbyAreas[location.toLowerCase()] || [];
     vendors = vendorDatabase.filter(vendor => 
       nearby.some(area => area.toLowerCase() === vendor.location.toLowerCase()) && 
-      vendor.category.toLowerCase() === item.toLowerCase()
+      vendor.category.toLowerCase().trim() === item.toLowerCase().trim()
     );
+    
+    console.log(`Nearby vendors found: ${vendors.length} vendors`);
   }
   
   return vendors;
