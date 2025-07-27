@@ -1,62 +1,8 @@
 import { Supplier } from "@/components/SupplierCard";
+import { vendorDatabase, VendorData } from "./vendorData";
 
-// Generate dynamic supplier data based on location and item
-const generateSuppliers = (item: string, location?: string): Supplier[] => {
-  const cityPrefixes = {
-    'delhi': ['Azadpur', 'Lajpat Nagar', 'Connaught Place', 'Karol Bagh'],
-    'mumbai': ['Crawford Market', 'Dadar', 'Andheri', 'Bandra'],
-    'pune': ['Gultekdi', 'Shaniwar Peth', 'Camp', 'Kothrud'],
-    'bangalore': ['KR Market', 'Malleshwaram', 'Jayanagar', 'Electronic City'],
-    'hyderabad': ['Begum Bazaar', 'Ameerpet', 'Jubilee Hills', 'Secunderabad'],
-    'kolkata': ['New Market', 'Gariahat', 'Salt Lake', 'Park Street']
-  };
-
-  const supplierNames = [
-    'Fresh Farm Co', 'Kisaan Bhai', 'Green Valley', 'Mandi Express',
-    'Farm Direct', 'Sabzi Wala', 'Quality Traders', 'Bulk Bazaar',
-    'Wholesale King', 'Metro Suppliers', 'City Fresh', 'Veggie Hub'
-  ];
-
-  const detectCity = (text: string): string => {
-    const lowerText = text.toLowerCase();
-    for (const city of Object.keys(cityPrefixes)) {
-      if (lowerText.includes(city)) return city;
-    }
-    return 'delhi'; // default
-  };
-
-  const city = location ? detectCity(location) : 'delhi';
-  const areas = cityPrefixes[city as keyof typeof cityPrefixes] || cityPrefixes.delhi;
-
-  // Generate 3-4 suppliers with varying prices and ratings
-  const suppliers: Supplier[] = [];
-  const basePrice = getBasePrice(item);
-  
-  for (let i = 0; i < 3; i++) {
-    const priceVariation = (Math.random() - 0.5) * 6; // ±3 price variation
-    const price = Math.max(basePrice + priceVariation, 5);
-    
-    suppliers.push({
-      name: supplierNames[Math.floor(Math.random() * supplierNames.length)],
-      price: Math.round(price * 100) / 100,
-      rating: Math.round((3.5 + Math.random() * 1.5) * 10) / 10,
-      deliveryTime: ['15 min', '30 min', '45 min', '1 hr'][Math.floor(Math.random() * 4)],
-      contact: `+91 ${Math.floor(Math.random() * 90000) + 10000} ${Math.floor(Math.random() * 90000) + 10000}`,
-      location: `${areas[i % areas.length]}, ${city.charAt(0).toUpperCase() + city.slice(1)}`
-    });
-  }
-  
-  return suppliers;
-};
-
-const getBasePrice = (item: string): number => {
-  const prices: { [key: string]: number } = {
-    'onion': 25, 'potato': 20, 'tomato': 30, 'cucumber': 18,
-    'oil': 150, 'flour': 40, 'spices': 200, 'salt': 25,
-    'sugar': 45, 'chili': 60, 'vegetables': 25
-  };
-  return prices[item.toLowerCase()] || 30;
-};
+// Keep track of previously shown vendors to avoid repetition
+let previouslyShownVendors: Set<string> = new Set();
 
 // Enhanced language detection with more keywords
 export const detectLanguage = (text: string): 'hi' | 'mr' | 'en' => {
@@ -111,7 +57,7 @@ export const parseUserQuery = (message: string) => {
   const quantityMatch = message.match(/(\d+\.?\d*)\s*(kilo|kg|किलो|quintal|ton)/i);
   const quantity = quantityMatch ? parseFloat(quantityMatch[1]) : null;
   
-  // Expanded item mapping for street food vendors  
+  // Enhanced item mapping for street food vendors  
   const itemMapping: { [key: string]: string } = {
     // Vegetables
     'pyaaz': 'onion', 'kanda': 'onion', 'onion': 'onion',
@@ -120,21 +66,22 @@ export const parseUserQuery = (message: string) => {
     'cucumber': 'cucumber', 'kheera': 'cucumber', 'kakdi': 'cucumber',
     'sabji': 'vegetables', 'vegetables': 'vegetables',
     'hari mirch': 'green chili', 'chili': 'green chili',
+    'capsicum': 'capsicum', 'shimla mirch': 'capsicum',
+    'zucchini': 'zucchini', 'mushroom': 'mushroom',
     
     // Cooking essentials
     'tel': 'oil', 'oil': 'oil', 'cooking oil': 'oil',
-    'atta': 'flour', 'flour': 'flour', 'maida': 'refined flour',
+    'atta': 'flour', 'flour': 'flour', 'maida': 'flour',
     'masala': 'spices', 'spices': 'spices', 'garam masala': 'spices',
     'namak': 'salt', 'salt': 'salt',
     'chini': 'sugar', 'sugar': 'sugar',
+    'butter': 'butter', 'makhan': 'butter',
     
     // Street food specific
-    'puri': 'puri', 'bhel': 'bhel mix', 'sev': 'sev',
-    'chutney': 'chutney', 'sauce': 'sauce',
-    'bread': 'bread', 'pav': 'pav bread'
+    'bread': 'bread', 'pav': 'bread', 'roti': 'bread'
   };
   
-  let item = 'supplies';
+  let item = '';
   for (const [key, value] of Object.entries(itemMapping)) {
     if (lowerMessage.includes(key)) {
       item = value;
@@ -143,7 +90,14 @@ export const parseUserQuery = (message: string) => {
   }
   
   // Extract location from message
-  const location = message; // Pass the full message for location detection
+  const locationKeywords = ['delhi', 'mumbai', 'pune', 'bangalore', 'hyderabad', 'kolkata', 'andheri', 'bandra', 'surat', 'indore', 'nagpur', 'jaipur', 'ahmedabad'];
+  let location = '';
+  for (const loc of locationKeywords) {
+    if (lowerMessage.includes(loc.toLowerCase())) {
+      location = loc.charAt(0).toUpperCase() + loc.slice(1);
+      break;
+    }
+  }
   
   return {
     item,
@@ -157,34 +111,92 @@ export const parseUserQuery = (message: string) => {
   };
 };
 
-// Generate and sort suppliers based on user preferences
-export const recommendSuppliers = (requirements: ReturnType<typeof parseUserQuery>) => {
-  // Generate fresh suppliers for each request to avoid repetition
-  let suppliers = generateSuppliers(requirements.item, requirements.location);
+// Convert vendor data to supplier format
+const convertToSupplier = (vendor: VendorData): Supplier => {
+  return {
+    name: vendor.name,
+    price: parseFloat(vendor.price_per_unit.match(/\d+\.?\d*/)?.[0] || '0'),
+    rating: vendor.ratings,
+    deliveryTime: vendor.notes.includes('Same-day') ? '30 min' : 
+                  vendor.notes.includes('Tuesdays') ? '2-3 days' : 
+                  vendor.notes.includes('Limited') ? '1 hr' : '45 min',
+    contact: `+91 ${Math.floor(Math.random() * 90000) + 70000} ${Math.floor(Math.random() * 90000) + 10000}`,
+    location: vendor.location
+  };
+};
+
+// Find vendors based on location and item
+const findVendorsByLocationAndItem = (location: string, item: string): VendorData[] => {
+  // First try exact location match
+  let vendors = vendorDatabase.filter(vendor => 
+    vendor.location.toLowerCase() === location.toLowerCase() && 
+    vendor.category.toLowerCase() === item.toLowerCase()
+  );
   
-  if (requirements.isUrgent) {
-    // Sort by delivery time (ascending)
-    suppliers.sort((a, b) => {
-      const timeA = parseInt(a.deliveryTime);
-      const timeB = parseInt(b.deliveryTime);
-      return timeA - timeB;
-    });
-  } else if (requirements.wantsCheap) {
-    // Sort by price (ascending)
-    suppliers.sort((a, b) => a.price - b.price);
-  } else if (requirements.wantsQuality) {
-    // Sort by rating (descending)
-    suppliers.sort((a, b) => b.rating - a.rating);
-  } else {
-    // Default: balance of price and rating
-    suppliers.sort((a, b) => {
-      const scoreA = (5 - a.rating) + (a.price / 100);
-      const scoreB = (5 - b.rating) + (b.price / 100);
-      return scoreA - scoreB;
-    });
+  // If no exact match, try nearby areas
+  if (vendors.length === 0) {
+    const nearbyAreas: { [key: string]: string[] } = {
+      'andheri': ['Mumbai', 'Bandra'],
+      'bandra': ['Mumbai', 'Andheri'],
+      'mumbai': ['Andheri', 'Bandra'],
+      'delhi': ['Gurgaon', 'Noida'],
+      'pune': ['Mumbai'],
+      'surat': ['Mumbai'],
+      'indore': ['Nagpur'],
+      'nagpur': ['Indore'],
+      'jaipur': ['Delhi'],
+      'ahmedabad': ['Surat']
+    };
+    
+    const nearby = nearbyAreas[location.toLowerCase()] || [];
+    vendors = vendorDatabase.filter(vendor => 
+      nearby.some(area => area.toLowerCase() === vendor.location.toLowerCase()) && 
+      vendor.category.toLowerCase() === item.toLowerCase()
+    );
   }
   
-  return suppliers; // Return generated suppliers
+  return vendors;
+};
+
+// Get recommendations and avoid repetition
+export const recommendSuppliers = (requirements: ReturnType<typeof parseUserQuery>) => {
+  if (!requirements.item) return [];
+  
+  let vendors = findVendorsByLocationAndItem(requirements.location, requirements.item);
+  
+  // Remove previously shown vendors to avoid repetition
+  vendors = vendors.filter(vendor => !previouslyShownVendors.has(vendor.name));
+  
+  // If we've shown all vendors, reset the tracking
+  if (vendors.length === 0) {
+    previouslyShownVendors.clear();
+    vendors = findVendorsByLocationAndItem(requirements.location, requirements.item);
+  }
+  
+  // Sort based on requirements
+  if (requirements.isUrgent) {
+    vendors.sort((a, b) => {
+      const aHasSameDay = a.notes.includes('Same-day') ? 1 : 0;
+      const bHasSameDay = b.notes.includes('Same-day') ? 1 : 0;
+      return bHasSameDay - aHasSameDay;
+    });
+  } else if (requirements.wantsCheap) {
+    vendors.sort((a, b) => {
+      const aPrice = parseFloat(a.price_per_unit.match(/\d+\.?\d*/)?.[0] || '0');
+      const bPrice = parseFloat(b.price_per_unit.match(/\d+\.?\d*/)?.[0] || '0');
+      return aPrice - bPrice;
+    });
+  } else if (requirements.wantsQuality) {
+    vendors.sort((a, b) => b.ratings - a.ratings);
+  }
+  
+  // Take top 3 vendors
+  const selectedVendors = vendors.slice(0, 3);
+  
+  // Track the vendors we're showing
+  selectedVendors.forEach(vendor => previouslyShownVendors.add(vendor.name));
+  
+  return selectedVendors.map(convertToSupplier);
 };
 
 // Varied greeting responses
@@ -235,7 +247,7 @@ const getHelpResponse = (language: 'hi' | 'mr' | 'en'): string => {
   return options[Math.floor(Math.random() * options.length)];
 };
 
-// Enhanced response generation with more variety
+// Enhanced response generation with location-specific messaging
 export const generateResponse = (
   language: 'hi' | 'mr' | 'en',
   requirements: ReturnType<typeof parseUserQuery>,
@@ -249,6 +261,24 @@ export const generateResponse = (
   // Handle general help queries
   if (requirements.isGeneralQuery) {
     return getHelpResponse(language);
+  }
+  
+  // Check if no suppliers found
+  if (suppliers.length === 0) {
+    if (requirements.location && requirements.item) {
+      return `Sorry, I couldn't find ${requirements.item} suppliers in ${requirements.location}, but we're constantly expanding! Try checking nearby areas or let me know if you need something else.`;
+    }
+    return "Sorry, I couldn't find a match in your area, but we're constantly expanding!";
+  }
+  
+  // Check if showing nearby suppliers
+  const exactLocationMatch = suppliers.every(s => 
+    s.location?.toLowerCase() === requirements.location.toLowerCase()
+  );
+  
+  let locationPrefix = '';
+  if (requirements.location && !exactLocationMatch) {
+    locationPrefix = `We don't have ${requirements.item} vendors in ${requirements.location}, but here are some from nearby areas:\n\n`;
   }
   
   // Varied supplier responses
@@ -271,7 +301,7 @@ export const generateResponse = (
       ],
       default: [
         `${requirements.item} के लिए ये verified suppliers हैं:`,
-        `आपके area के पास ये अच्छे suppliers हैं:`,
+        `आपके लिए ये अच्छे ${requirements.item} suppliers मिले:`,
         `${requirements.item} के लिए ये trusted options देखिए:`
       ]
     },
@@ -315,7 +345,7 @@ export const generateResponse = (
       ],
       default: [
         `Here are verified suppliers for ${requirements.item}:`,
-        `Good suppliers near your area for ${requirements.item}:`,
+        `Found some great ${requirements.item} suppliers for you:`,
         `Trusted options for ${requirements.item}:`
       ]
     }
@@ -328,16 +358,16 @@ export const generateResponse = (
   
   const options = responses[language][responseCategory as keyof typeof responses[typeof language]];
   if (options && options.length > 0) {
-    return options[Math.floor(Math.random() * options.length)];
+    const response = options[Math.floor(Math.random() * options.length)];
+    return locationPrefix + response;
   }
   
   // Fallback
-  return `Here are some good suppliers for ${requirements.item}:`;
+  return locationPrefix + `Here are some good suppliers for ${requirements.item}:`;
 };
 
-// Main chat processing function with enhanced Vendor Assist Bot personality
+// Main chat processing function
 export const processChatMessage = async (message: string) => {
-  // Simulate API delay with realistic processing time
   await new Promise(resolve => setTimeout(resolve, Math.random() * 1000 + 500));
   
   const language = detectLanguage(message);
