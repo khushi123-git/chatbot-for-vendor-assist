@@ -27,13 +27,22 @@ export const detectLanguage = (text: string): 'hi' | 'mr' | 'en' => {
   return 'en';
 };
 
-// Check for greeting patterns
+// Check for greeting patterns - only if the message is JUST a greeting, not a request
 export const isGreeting = (message: string): boolean => {
   const greetings = [
     'hi', 'hello', 'hey', 'namaste', 'namaskar', 'good morning', 'good afternoon',
     'good evening', 'kaise ho', 'kya haal', 'kaisa hai', 'kemon acho'
   ];
-  return greetings.some(greeting => message.toLowerCase().includes(greeting));
+  const lowerMessage = message.toLowerCase().trim();
+  
+  // If message contains item requests, it's not just a greeting
+  const hasItemRequest = ['butter', 'oil', 'onion', 'potato', 'tomato', 'flour', 'sugar', 'salt', 'bread', 'spices', 'zucchini', 'mushroom', 'capsicum'].some(item => 
+    lowerMessage.includes(item)
+  );
+  
+  if (hasItemRequest) return false;
+  
+  return greetings.some(greeting => lowerMessage === greeting || lowerMessage.startsWith(greeting + ' '));
 };
 
 // Check for help/general queries
