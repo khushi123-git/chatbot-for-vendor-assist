@@ -1,40 +1,62 @@
 import { Supplier } from "@/components/SupplierCard";
 
-// Dummy supplier data
-const SUPPLIERS: Supplier[] = [
-  {
-    name: "FreshBazaar",
-    price: 12,
-    rating: 4.5,
-    deliveryTime: "30 min",
-    contact: "+91 98765 43210",
-    location: "Main Market, Mumbai"
-  },
-  {
-    name: "Suresh Bhai",
-    price: 11,
-    rating: 3.8,
-    deliveryTime: "1 hr",
-    contact: "+91 98765 43211",
-    location: "Vegetable Mandi, Pune"
-  },
-  {
-    name: "LocalMandi",
-    price: 14,
-    rating: 4.7,
-    deliveryTime: "15 min",
-    contact: "+91 98765 43212",
-    location: "Local Market, Delhi"
-  },
-  {
-    name: "Kirana Express",
-    price: 13,
-    rating: 4.0,
-    deliveryTime: "45 min",
-    contact: "+91 98765 43213",
-    location: "Express Delivery Service"
+// Generate dynamic supplier data based on location and item
+const generateSuppliers = (item: string, location?: string): Supplier[] => {
+  const cityPrefixes = {
+    'delhi': ['Azadpur', 'Lajpat Nagar', 'Connaught Place', 'Karol Bagh'],
+    'mumbai': ['Crawford Market', 'Dadar', 'Andheri', 'Bandra'],
+    'pune': ['Gultekdi', 'Shaniwar Peth', 'Camp', 'Kothrud'],
+    'bangalore': ['KR Market', 'Malleshwaram', 'Jayanagar', 'Electronic City'],
+    'hyderabad': ['Begum Bazaar', 'Ameerpet', 'Jubilee Hills', 'Secunderabad'],
+    'kolkata': ['New Market', 'Gariahat', 'Salt Lake', 'Park Street']
+  };
+
+  const supplierNames = [
+    'Fresh Farm Co', 'Kisaan Bhai', 'Green Valley', 'Mandi Express',
+    'Farm Direct', 'Sabzi Wala', 'Quality Traders', 'Bulk Bazaar',
+    'Wholesale King', 'Metro Suppliers', 'City Fresh', 'Veggie Hub'
+  ];
+
+  const detectCity = (text: string): string => {
+    const lowerText = text.toLowerCase();
+    for (const city of Object.keys(cityPrefixes)) {
+      if (lowerText.includes(city)) return city;
+    }
+    return 'delhi'; // default
+  };
+
+  const city = location ? detectCity(location) : 'delhi';
+  const areas = cityPrefixes[city as keyof typeof cityPrefixes] || cityPrefixes.delhi;
+
+  // Generate 3-4 suppliers with varying prices and ratings
+  const suppliers: Supplier[] = [];
+  const basePrice = getBasePrice(item);
+  
+  for (let i = 0; i < 3; i++) {
+    const priceVariation = (Math.random() - 0.5) * 6; // ±3 price variation
+    const price = Math.max(basePrice + priceVariation, 5);
+    
+    suppliers.push({
+      name: supplierNames[Math.floor(Math.random() * supplierNames.length)],
+      price: Math.round(price * 100) / 100,
+      rating: Math.round((3.5 + Math.random() * 1.5) * 10) / 10,
+      deliveryTime: ['15 min', '30 min', '45 min', '1 hr'][Math.floor(Math.random() * 4)],
+      contact: `+91 ${Math.floor(Math.random() * 90000) + 10000} ${Math.floor(Math.random() * 90000) + 10000}`,
+      location: `${areas[i % areas.length]}, ${city.charAt(0).toUpperCase() + city.slice(1)}`
+    });
   }
-];
+  
+  return suppliers;
+};
+
+const getBasePrice = (item: string): number => {
+  const prices: { [key: string]: number } = {
+    'onion': 25, 'potato': 20, 'tomato': 30, 'cucumber': 18,
+    'oil': 150, 'flour': 40, 'spices': 200, 'salt': 25,
+    'sugar': 45, 'chili': 60, 'vegetables': 25
+  };
+  return prices[item.toLowerCase()] || 30;
+};
 
 // Enhanced language detection with more keywords
 export const detectLanguage = (text: string): 'hi' | 'mr' | 'en' => {
@@ -89,12 +111,13 @@ export const parseUserQuery = (message: string) => {
   const quantityMatch = message.match(/(\d+\.?\d*)\s*(kilo|kg|किलो|quintal|ton)/i);
   const quantity = quantityMatch ? parseFloat(quantityMatch[1]) : null;
   
-  // Expanded item mapping for street food vendors
+  // Expanded item mapping for street food vendors  
   const itemMapping: { [key: string]: string } = {
     // Vegetables
     'pyaaz': 'onion', 'kanda': 'onion', 'onion': 'onion',
     'aloo': 'potato', 'batata': 'potato', 'potato': 'potato',
     'tamatar': 'tomato', 'tomato': 'tomato',
+    'cucumber': 'cucumber', 'kheera': 'cucumber', 'kakdi': 'cucumber',
     'sabji': 'vegetables', 'vegetables': 'vegetables',
     'hari mirch': 'green chili', 'chili': 'green chili',
     
@@ -119,9 +142,13 @@ export const parseUserQuery = (message: string) => {
     }
   }
   
+  // Extract location from message
+  const location = message; // Pass the full message for location detection
+  
   return {
     item,
     quantity,
+    location,
     isUrgent: urgentKeywords.some(keyword => lowerMessage.includes(keyword)),
     wantsCheap: cheapKeywords.some(keyword => lowerMessage.includes(keyword)),
     wantsQuality: qualityKeywords.some(keyword => lowerMessage.includes(keyword)),
@@ -130,33 +157,34 @@ export const parseUserQuery = (message: string) => {
   };
 };
 
-// Sort suppliers based on user preferences
+// Generate and sort suppliers based on user preferences
 export const recommendSuppliers = (requirements: ReturnType<typeof parseUserQuery>) => {
-  let sortedSuppliers = [...SUPPLIERS];
+  // Generate fresh suppliers for each request to avoid repetition
+  let suppliers = generateSuppliers(requirements.item, requirements.location);
   
   if (requirements.isUrgent) {
     // Sort by delivery time (ascending)
-    sortedSuppliers.sort((a, b) => {
+    suppliers.sort((a, b) => {
       const timeA = parseInt(a.deliveryTime);
       const timeB = parseInt(b.deliveryTime);
       return timeA - timeB;
     });
   } else if (requirements.wantsCheap) {
     // Sort by price (ascending)
-    sortedSuppliers.sort((a, b) => a.price - b.price);
+    suppliers.sort((a, b) => a.price - b.price);
   } else if (requirements.wantsQuality) {
     // Sort by rating (descending)
-    sortedSuppliers.sort((a, b) => b.rating - a.rating);
+    suppliers.sort((a, b) => b.rating - a.rating);
   } else {
     // Default: balance of price and rating
-    sortedSuppliers.sort((a, b) => {
+    suppliers.sort((a, b) => {
       const scoreA = (5 - a.rating) + (a.price / 100);
       const scoreB = (5 - b.rating) + (b.price / 100);
       return scoreA - scoreB;
     });
   }
   
-  return sortedSuppliers.slice(0, 3); // Return top 3
+  return suppliers; // Return generated suppliers
 };
 
 // Varied greeting responses
