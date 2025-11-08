@@ -23,12 +23,5 @@ const App = () => (
     </TooltipProvider>
   </QueryClientProvider>
 );
-import Chatbot from "./pages/Chatbot"; // 👈 add this import
-
-<Routes>
-  <Route path="/" element={<Index />} />
-  <Route path="/chatbot" element={<Chatbot />} /> {/* 👈 new route */}
-  <Route path="*" element={<NotFound />} />
-</Routes>
 
 export default App;
