@@ -4,7 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 // 🧠 Replace these with your actual Supabase details
 const supabase = createClient(
   "https://biibpkmrulenfvamhxsm.supabase.co", // your project URL
-  "YOUR_SUPABASE_ANON_KEY" // replace this with your anon key
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpaWJwa21ydWxlbmZ2YW1oeHNtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM1MzU3MzcsImV4cCI6MjA2OTExMTczN30.dR5cIlXpe39TKo7KexoEKhR3TbPu-8x7GKcochLNoT0" 
 );
 
 const Chatbot = () => {
