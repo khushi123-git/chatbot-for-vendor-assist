@@ -1,0 +1,40 @@
+import { useState, useEffect } from "react";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+ 'https://biibpkmrulenfvamhxsm.supabase.co';
+'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpaWJwa21ydWxlbmZ2YW1oeHNtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM1MzU3MzcsImV4cCI6MjA2OTExMTczN30.dR5cIlXpe39TKo7KexoEKhR3TbPu-8x7GKcochLNoT0'
+);
+
+const Index = () => {
+  const [vendors, setVendors] = useState([]);
+
+  useEffect(() => {
+    const fetchVendors = async () => {
+      const { data, error } = await supabase
+        .from("vendors")
+        .select("*")
+        .ilike("location", "%Mumbai%");
+      if (error) console.error(error);
+      else setVendors(data);
+    };
+    fetchVendors();
+  }, []);
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-background">
+      <h1 className="text-4xl font-bold mb-4">Vendors in Mumbai</h1>
+      {vendors.length ? (
+        <ul>
+          {vendors.map((v) => (
+            <li key={v.id}>{v.name} — {v.location}</li>
+          ))}
+        </ul>
+      ) : (
+        <p>No vendors found</p>
+      )}
+    </div>
+  );
+};
+
+export default Index;
